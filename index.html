@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marine Insight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Base page styles for transitions */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            transform: scale(0.98);
+            will-change: transform, opacity;
+        }
+        
+        /* Active page style */
+        .page-active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        /* Slide-in transition for detail pages */
+        .page-slide-in {
+            transform: translateX(100%);
+        }
+        .page-active.page-slide-in {
+             transform: translateX(0);
+        }
+        .page-slide-out {
+            transform: translateX(-100%);
+        }
+
+        /* Ocean-inspired gradient background */
+        .ocean-gradient {
+            background: linear-gradient(135deg, #002B4D 0%, #00507A 50%, #0079A8 100%);
+        }
+        
+        .ocean-gradient-light {
+             background: linear-gradient(135deg, #1a5f92 0%, #2c89b8 100%);
+        }
+        
+        /* Researcher section specific background from new1.py concept */
+        .research-bg-wrapper {
+            background-color: #011a2e;
+            background-image:
+                linear-gradient(rgba(1, 40, 69, 0.8), rgba(1, 40, 69, 0.8)),
+                radial-gradient(ellipse at center, rgba(0, 128, 128, 0.2) 0%, transparent 70%),
+                linear-gradient(to bottom, transparent 0%, transparent 98%, #00d9ff 98%, #00d9ff 100%),
+                linear-gradient(to right, transparent 0%, transparent 98%, #00d9ff 98%, #00d9ff 100%);
+            background-size: 100% 100%, 100% 100%, 20px 20px, 20px 20px;
+        }
+
+        /* Frosted glass effect for cards */
+        .frosted-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 194, 203, 0.6);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 194, 203, 1);
+        }
+
+        /* Leaflet Dark Theme */
+        .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: #011a2e;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Custom Slider Style */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #00d9ff;
+            cursor: pointer;
+            margin-top: -7px;
+            border: 2px solid #011a2e;
+        }
+
+        input[type=range]::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #00d9ff;
+            cursor: pointer;
+            border: 2px solid #011a2e;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 overflow-hidden">
+
+    <!-- App Container -->
+    <div id="app-container" class="relative mx-auto h-[100vh] w-full max-w-md overflow-hidden bg-gray-900 shadow-2xl">
+
+        <!-- ===== WELCOME PAGE ===== -->
+        <div id="welcome-page" class="page ocean-gradient page-active flex flex-col items-center justify-center p-8 text-white">
+            
+            <div class="absolute top-4 right-4 z-10">
+                <button id="lang-menu-btn" class="p-2 rounded-full frosted-card">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                </button>
+                <div id="lang-menu" class="hidden absolute right-0 mt-2 w-32 frosted-card rounded-lg shadow-lg py-1">
+                    <a href="#" class="lang-option block px-4 py-2 text-sm text-white hover:bg-white/10" data-lang="en">English</a>
+                    <a href="#" class="lang-option block px-4 py-2 text-sm text-white hover:bg-white/10" data-lang="hi">हिन्दी</a>
+                    <a href="#" class="lang-option block px-4 py-2 text-sm text-white hover:bg-white/10" data-lang="ta">தமிழ்</a>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center text-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-300 drop-shadow-lg"><path d="M20.92 14c.38-1 .58-2.06.58-3.12 0-5.52-4.48-10-10-10S1.5 5.36 1.5 10.88c0 3.32 1.68 6.25 4.2 8.12"/><path d="M12 12h.01"/><path d="M16 16h.01"/><path d="M18 9h.01"/><path d="M21.5 12h.01"/><path d="M18.5 18h.01"/><path d="M9 16h.01"/><path d="M6 11h.01"/><path d="m2.5 17.5 1.5-1.5"/><path d="M10 21.5 10.5 21"/><path d="M13 19.5 13.5 19"/></svg>
+                <h1 class="text-4xl font-bold mt-4 tracking-tight" data-translate-key="welcome_title">Marine Insight</h1>
+                <p class="text-cyan-200 mt-2" data-translate-key="welcome_subtitle">Your guide to India's oceans and coastlines.</p>
+            </div>
+            <div class="w-full mt-16 space-y-6">
+                <div data-target="researcher-dashboard" class="role-card frosted-card rounded-2xl p-6 text-center transition-transform duration-300 hover:scale-105 active:scale-100 cursor-pointer">
+                    <h2 class="text-2xl font-semibold" data-translate-key="researcher_role">Researcher</h2>
+                    <p class="text-cyan-300 mt-1" data-translate-key="researcher_desc">Access oceanographic & biodiversity data.</p>
+                </div>
+                <div data-target="fisherman-dashboard" class="role-card frosted-card rounded-2xl p-6 text-center transition-transform duration-300 hover:scale-105 active:scale-100 cursor-pointer">
+                    <h2 class="text-2xl font-semibold" data-translate-key="fisherman_role">Fisherman</h2>
+                    <p class="text-cyan-300 mt-1" data-translate-key="fisherman_desc">View maps, clubs, & revenue insights.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RESEARCHER DASHBOARD ===== -->
+        <div id="researcher-dashboard" class="page ocean-gradient flex flex-col text-white p-6">
+             <header class="flex-shrink-0 flex items-center">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20 -ml-2" data-target="welcome-page">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 class="text-3xl font-bold tracking-tight ml-2" data-translate-key="researcher_dashboard_title">Researcher Dashboard</h1>
+            </header>
+            <main class="flex-grow mt-8 grid grid-rows-3 gap-6">
+                <div data-target="oceanographic-list" class="dashboard-card frosted-card rounded-2xl p-6 flex flex-col justify-end transition-transform duration-300 hover:scale-105 active:scale-100 cursor-pointer" style="background-image: url('https://placehold.co/600x400/003366/FFFFFF?text=Ocean'); background-size: cover; background-position: center;">
+                    <div class="bg-black/40 p-3 rounded-lg">
+                        <h2 class="text-2xl font-bold" data-translate-key="oceanographic_title">Oceanographic</h2>
+                        <p class="text-cyan-200 text-sm" data-translate-key="oceanographic_desc">Temperature, Salinity, Currents</p>
+                    </div>
+                </div>
+                <div data-target="fisheries-list" class="dashboard-card frosted-card rounded-2xl p-6 flex flex-col justify-end transition-transform duration-300 hover:scale-105 active:scale-100 cursor-pointer" style="background-image: url('https://placehold.co/600x400/006699/FFFFFF?text=Fisheries'); background-size: cover; background-position: center;">
+                    <div class="bg-black/40 p-3 rounded-lg">
+                        <h2 class="text-2xl font-bold" data-translate-key="fisheries_title">Fisheries</h2>
+                        <p class="text-cyan-200 text-sm" data-translate-key="fisheries_desc">Stock Availability, Sustainability</p>
+                    </div>
+                </div>
+                 <div data-target="biodiversity-list" class="dashboard-card frosted-card rounded-2xl p-6 flex flex-col justify-end transition-transform duration-300 hover:scale-105 active:scale-100 cursor-pointer" style="background-image: url('https://placehold.co/600x400/0099CC/FFFFFF?text=Biodiversity'); background-size: cover; background-position: center;">
+                    <div class="bg-black/40 p-3 rounded-lg">
+                        <h2 class="text-2xl font-bold" data-translate-key="biodiversity_title">Biodiversity</h2>
+                        <p class="text-cyan-200 text-sm" data-translate-key="biodiversity_desc">Species, Reefs, Conservation</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ===== RESEARCHER SUB-PAGES ===== -->
+        <!-- Oceanographic List -->
+        <div id="oceanographic-list" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="researcher-dashboard">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 class="text-2xl font-bold mx-auto" data-translate-key="indias_oceans">India's Oceans</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-4">
+                <div data-target="oceanographic-detail" data-ocean-name="Arabian Sea" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                    <img src="https://placehold.co/150x100/005f73/FFFFFF?text=Arabian+Sea" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg" data-translate-key="arabian_sea">Arabian Sea</h3>
+                </div>
+                <div data-target="oceanographic-detail" data-ocean-name="Bay of Bengal" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                     <img src="https://placehold.co/150x100/0a9396/FFFFFF?text=Bay+of+Bengal" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg" data-translate-key="bay_of_bengal">Bay of Bengal</h3>
+                </div>
+                <div data-target="oceanographic-detail" data-ocean-name="Indian Ocean" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                     <img src="https://placehold.co/150x100/94d2bd/FFFFFF?text=Indian+Ocean" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg" data-translate-key="indian_ocean">Indian Ocean (Region)</h3>
+                </div>
+            </main>
+        </div>
+
+        <!-- Oceanographic Detail -->
+        <div id="oceanographic-detail" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="oceanographic-list">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 id="ocean-detail-title" class="text-2xl font-bold mx-auto">Pacific Ocean</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-4">
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="this_weeks_insights">This Week's AI-Powered Insights</h2>
+                    <ul id="ocean-detail-insights" class="text-sm mt-2 text-gray-300 space-y-2 list-disc list-inside">
+                        <!-- Dynamic content will be inserted here -->
+                    </ul>
+                </div>
+                <!-- CHATBOX -->
+                <div class="frosted-card rounded-xl p-4 flex flex-col">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="chat_with_live_data">Chat with Live Report Data</h2>
+                    <div id="chat-history" class="mt-2 flex-grow h-64 overflow-y-auto space-y-3 pr-2">
+                        <div class="flex justify-start">
+                            <div class="bg-gray-700/50 rounded-lg p-2 max-w-xs text-sm">
+                                <p data-translate-key="chat_greeting_ocean">Hello! Ask any question about this ocean. My answers are based on live web data.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center flex-shrink-0">
+                        <input type="text" id="chat-input" class="w-full bg-gray-900/50 border border-gray-600 rounded-l-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" data-translate-key-placeholder="chat_placeholder">
+                        <button id="send-chat-btn" class="bg-cyan-600 text-white p-2.5 rounded-r-lg hover:bg-cyan-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- DATA SOURCES -->
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="data_sources">Data Sources</h2>
+                    <p class="text-xs text-gray-400 mt-2" data-translate-key="data_sources_desc_ocean">This app simulates real-time data from leading global and national oceanographic institutions:</p>
+                    <ul class="text-sm mt-2 text-cyan-200 space-y-1 list-disc list-inside">
+                        <li>INCOIS (Indian National Centre for Ocean Information Services)</li>
+                        <li>NOAA (National Oceanic and Atmospheric Administration)</li>
+                        <li>Copernicus Marine Service (EU)</li>
+                    </ul>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Fisheries List -->
+        <div id="fisheries-list" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="researcher-dashboard">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 class="text-2xl font-bold mx-auto" data-translate-key="fisheries_analysis">Fisheries Analysis</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-cyan-300 mb-3" data-translate-key="key_indian_fisheries">Key Indian Fisheries</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div data-target="fisheries-detail" data-fish-name="Indian Mackerel" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                            <img src="https://placehold.co/200x150/0077b6/FFFFFF?text=Mackerel" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Indian Mackerel</h3>
+                        </div>
+                        <div data-target="fisheries-detail" data-fish-name="Sardines" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                             <img src="https://placehold.co/200x150/0096c7/FFFFFF?text=Sardines" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Sardines</h3>
+                        </div>
+                        <div data-target="fisheries-detail" data-fish-name="Pomfret" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                             <img src="https://placehold.co/200x150/48cae4/000000?text=Pomfret" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Pomfret</h3>
+                        </div>
+                        <div data-target="fisheries-detail" data-fish-name="Hilsa" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                             <img src="https://placehold.co/200x150/90e0ef/000000?text=Hilsa" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Hilsa</h3>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold text-cyan-300 mb-3" data-translate-key="global_commercial_species">Global Commercial Species</h2>
+                     <div class="grid grid-cols-2 gap-4">
+                        <div data-target="fisheries-detail" data-fish-name="Tuna" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                            <img src="https://placehold.co/200x150/ffb703/FFFFFF?text=Tuna" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Tuna</h3>
+                        </div>
+                        <div data-target="fisheries-detail" data-fish-name="Shrimp" class="research-item-card frosted-card rounded-xl p-3 text-center cursor-pointer transition-all duration-300 hover:border-cyan-400">
+                             <img src="https://placehold.co/200x150/fb8500/FFFFFF?text=Shrimp" class="rounded-lg w-full h-24 object-cover">
+                            <h3 class="font-semibold mt-2">Shrimp & Prawns</h3>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Fisheries Detail -->
+        <div id="fisheries-detail" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="fisheries-list">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 id="fish-detail-title" class="text-2xl font-bold mx-auto">Fish Species</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-4">
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="this_weeks_insights">This Week's AI-Powered Insights</h2>
+                    <ul id="fish-detail-insights" class="text-sm mt-2 text-gray-300 space-y-2 list-disc list-inside">
+                        <!-- Dynamic content will be inserted here -->
+                    </ul>
+                </div>
+                <!-- CHATBOX -->
+                <div class="frosted-card rounded-xl p-4 flex flex-col">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="analyse_with_live_data">Analyse with Live Report Data</h2>
+                    <div id="fish-chat-history" class="mt-2 flex-grow h-64 overflow-y-auto space-y-3 pr-2">
+                        <div class="flex justify-start">
+                            <div class="bg-gray-700/50 rounded-lg p-2 max-w-xs text-sm">
+                                <p data-translate-key="chat_greeting_fish">Hello! Ask any question about this species. My answers are based on live web data.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center flex-shrink-0">
+                        <input type="text" id="fish-chat-input" class="w-full bg-gray-900/50 border border-gray-600 rounded-l-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" data-translate-key-placeholder="chat_placeholder">
+                        <button id="fish-send-chat-btn" class="bg-cyan-600 text-white p-2.5 rounded-r-lg hover:bg-cyan-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- DATA SOURCES -->
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="data_sources">Data Sources</h2>
+                    <p class="text-xs text-gray-400 mt-2" data-translate-key="data_sources_desc_fish">Analysis is based on data from leading national and global fisheries institutions:</p>
+                    <ul class="text-sm mt-2 text-cyan-200 space-y-1 list-disc list-inside">
+                        <li>CMFRI (Central Marine Fisheries Research Institute)</li>
+                        <li>INCOIS (Indian National Centre for Ocean Information Services)</li>
+                        <li>FAO Globefish</li>
+                    </ul>
+                </div>
+            </main>
+        </div>
+
+         <!-- Biodiversity List -->
+        <div id="biodiversity-list" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="researcher-dashboard">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 class="text-2xl font-bold mx-auto" data-translate-key="biodiversity_topics">Biodiversity Topics</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-4">
+                 <div data-target="biodiversity-detail" data-bio-name="Coral Reefs" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                    <img src="https://placehold.co/150x100/ef476f/FFFFFF?text=Corals" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg">Coral Reefs</h3>
+                </div>
+                 <div data-target="biodiversity-detail" data-bio-name="Mangrove Ecosystems" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                    <img src="https://placehold.co/150x100/06d6a0/FFFFFF?text=Mangroves" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg">Mangrove Ecosystems</h3>
+                </div>
+                <div data-target="biodiversity-detail" data-bio-name="Marine Mammals" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                    <img src="https://placehold.co/150x100/118ab2/FFFFFF?text=Mammals" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg">Marine Mammals</h3>
+                </div>
+                 <div data-target="biodiversity-detail" data-bio-name="Sea Turtles" class="research-item-card frosted-card rounded-xl p-3 text-left cursor-pointer transition-all duration-300 hover:border-cyan-400 flex items-center">
+                    <img src="https://placehold.co/150x100/073b4c/FFFFFF?text=Turtles" class="rounded-lg w-28 h-20 object-cover">
+                    <h3 class="font-semibold ml-4 text-lg">Sea Turtles</h3>
+                </div>
+            </main>
+        </div>
+
+        <!-- Biodiversity Detail -->
+        <div id="biodiversity-detail" class="page research-bg-wrapper flex flex-col text-white">
+            <header class="p-4 flex items-center frosted-card border-b-0 rounded-none">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20" data-target="biodiversity-list">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 id="bio-detail-title" class="text-2xl font-bold mx-auto">Biodiversity Topic</h1>
+            </header>
+            <main class="flex-grow p-4 overflow-y-auto space-y-4">
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="this_weeks_insights">This Week's AI-Powered Insights</h2>
+                    <ul id="bio-detail-insights" class="text-sm mt-2 text-gray-300 space-y-2 list-disc list-inside">
+                        <!-- Dynamic content will be inserted here -->
+                    </ul>
+                </div>
+                <!-- CHATBOX -->
+                <div class="frosted-card rounded-xl p-4 flex flex-col">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="analyse_with_live_data">Analyse with Live Report Data</h2>
+                    <div id="bio-chat-history" class="mt-2 flex-grow h-64 overflow-y-auto space-y-3 pr-2">
+                        <div class="flex justify-start">
+                            <div class="bg-gray-700/50 rounded-lg p-2 max-w-xs text-sm">
+                                <p data-translate-key="chat_greeting_bio">Hello! Ask any question about this topic. My answers are based on live conservation data.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center flex-shrink-0">
+                        <input type="text" id="bio-chat-input" class="w-full bg-gray-900/50 border border-gray-600 rounded-l-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" data-translate-key-placeholder="chat_placeholder">
+                        <button id="bio-send-chat-btn" class="bg-cyan-600 text-white p-2.5 rounded-r-lg hover:bg-cyan-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- DATA SOURCES -->
+                <div class="frosted-card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold text-cyan-300" data-translate-key="data_sources">Data Sources</h2>
+                    <p class="text-xs text-gray-400 mt-2" data-translate-key="data_sources_desc_bio">Analysis is based on data from leading national and global conservation bodies:</p>
+                    <ul class="text-sm mt-2 text-cyan-200 space-y-1 list-disc list-inside">
+                        <li>Zoological Survey of India (ZSI)</li>
+                        <li>Wildlife Institute of India (WII)</li>
+                        <li>IUCN Red List of Threatened Species</li>
+                    </ul>
+                </div>
+            </main>
+        </div>
+
+
+        <!-- ===== FISHERMAN DASHBOARD ===== -->
+        <div id="fisherman-dashboard" class="page ocean-gradient-light flex flex-col text-white">
+            <header class="p-4 flex items-center justify-between frosted-card border-b-0 rounded-none flex-shrink-0">
+                <button class="back-btn p-2 rounded-full hover:bg-white/20 -ml-2" data-target="welcome-page">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h1 id="fisherman-header-title" class="text-2xl font-bold text-center absolute w-full left-0 right-0 -z-10 pointer-events-none">Map</h1>
+                <div id="fisherman-header-actions" class="w-20 text-right"></div>
+            </header>
+            <main id="fisherman-content-container" class="flex-grow overflow-y-auto relative">
+                <!-- Map Tab Content -->
+                <div id="map-tab-content" class="fisherman-tab-content h-full flex flex-col">
+                    <div class="p-4 pt-2 flex-shrink-0 space-y-3">
+                        <div class="bg-black/20 rounded-full p-1 flex items-center w-fit mx-auto text-sm">
+                            <button id="risk-zone-toggle" class="map-toggle-btn bg-cyan-500 text-white rounded-full py-1.5 px-6" data-translate-key="risk_zones">Risk Zones</button>
+                            <button id="weather-map-toggle" class="map-toggle-btn text-cyan-200 rounded-full py-1.5 px-6">Weather Map</button>
+                        </div>
+                        <div id="day-slider-container" class="px-2">
+                             <p id="date-label" class="text-center font-semibold text-cyan-200 text-sm mb-2"></p>
+                             <input type="range" id="day-slider" min="0" max="6" value="0" step="1" class="w-full">
+                        </div>
+                    </div>
+                    <div class="flex-grow relative">
+                        <div id="risk-zones-view" class="absolute inset-0">
+                            <div id="map" class="w-full h-full"></div>
+                             <div class="absolute bottom-4 left-4 frosted-card p-2 rounded-lg text-xs z-[1000]">
+                                <h4 class="font-bold mb-1" data-translate-key="legend">Legend</h4>
+                                <div class="flex items-center"><div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div><span data-translate-key="danger">Danger</span></div>
+                                <div class="flex items-center"><div class="w-3 h-3 bg-amber-500 rounded-full mr-2"></div><span data-translate-key="caution">Caution</span></div>
+                                <div class="flex items-center"><div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div><span data-translate-key="safe">Safe</span></div>
+                            </div>
+                        </div>
+                        <div id="weather-map-view" class="absolute inset-0 hidden">
+                           <div id="weather-map" class="w-full h-full"></div>
+                            <div class="absolute top-2 left-2 bg-black/50 text-white text-xs py-1 px-2 rounded-md">Live Weather Radar</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Clubs Tab Content -->
+                <div id="clubs-tab-content" class="fisherman-tab-content hidden h-full flex flex-col">
+                     <div class="flex-grow p-4 overflow-y-auto space-y-4">
+                        <div id="club-list-view">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold text-white">Discover Clubs</h2>
+                                <button id="create-club-btn" class="bg-cyan-500/80 text-white font-semibold py-1.5 px-3 rounded-lg text-sm">+ Create Club</button>
+                            </div>
+                            <div id="club-list" class="space-y-3">
+                                <!-- Clubs will be populated by JS -->
+                            </div>
+                        </div>
+                        <div id="club-detail-view" class="hidden">
+                            <div class="flex items-center mb-4">
+                                <button id="back-to-clubs-btn" class="p-2 rounded-full hover:bg-white/20 -ml-2 mr-2">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <h2 id="club-detail-title" class="text-xl font-bold text-white">Club Name</h2>
+                            </div>
+                            <div id="club-feed" class="space-y-4 pb-20">
+                                <!-- Club posts will appear here -->
+                            </div>
+                            <button id="new-post-btn" class="fixed bottom-24 right-8 bg-orange-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-100">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Revenue Tab Content -->
+                <div id="revenue-tab-content" class="fisherman-tab-content hidden h-full flex flex-col">
+                     <div class="flex-grow p-4 overflow-y-auto space-y-4">
+                        <div class="frosted-card rounded-xl p-4 border-2 border-orange-400">
+                            <h2 class="text-lg font-bold text-orange-300">Live Revenue Predictor</h2>
+                            <p class="text-sm text-gray-300 mb-3">Estimate your catch's value based on today's market rates.</p>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="fish-select" class="block text-sm font-medium text-cyan-200">Fish Type</label>
+                                    <select id="fish-select" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                                        <!-- Options will be populated by JS -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="quantity-input" class="block text-sm font-medium text-cyan-200">Quantity (in kg)</label>
+                                    <input type="number" id="quantity-input" class="mt-1 block w-full bg-gray-900/50 border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm" placeholder="e.g., 50">
+                                </div>
+                                <button id="predict-revenue-btn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+                                    <svg id="predict-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                                    <svg id="predict-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span id="predict-btn-text">Predict Revenue</span>
+                                </button>
+                            </div>
+                            
+                            <div id="revenue-result" class="hidden mt-4 text-center bg-black/20 rounded-lg p-4">
+                                <p class="text-sm text-gray-300">Predicted Revenue:</p>
+                                <p class="text-3xl font-bold text-green-400" id="predicted-amount">₹ 0</p>
+                                <p class="text-xs text-cyan-300 mt-1" id="rate-info">Based on a predicted rate of ₹0/kg</p>
+                                <button id="save-catch-btn" class="hidden mt-3 w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg">Save to Catch Log</button>
+                            </div>
+                        </div>
+
+                        <div class="frosted-card rounded-xl p-4">
+                            <h2 class="text-lg font-semibold text-cyan-300">Personal Catch Log & Analytics</h2>
+                             <div id="analytics-summary" class="mt-2 text-sm space-y-2">
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-400">Total Logged Revenue:</span>
+                                     <span id="total-revenue-analytics" class="font-bold text-green-400">₹ 0</span>
+                                 </div>
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-400">Most Profitable Fish:</span>
+                                     <span id="top-fish-analytics" class="font-bold text-cyan-300">N/A</span>
+                                 </div>
+                             </div>
+                             <img src="https://placehold.co/400x200/219ebc/FFFFFF?text=Your+Catch+Trends+Chart" class="rounded-lg w-full mt-4 object-cover">
+                             <h3 class="font-semibold text-cyan-300 mt-4 mb-2">Recent Logs</h3>
+                             <div id="catch-log-list" class="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                 <p id="no-logs-message" class="text-gray-400 text-sm text-center">No catches logged yet.</p>
+                                 <!-- Log entries will be added here -->
+                             </div>
+                        </div>
+                    </div>
+                </div>
+                 <!-- Schemes Tab Content -->
+                <div id="schemes-tab-content" class="fisherman-tab-content hidden h-full flex flex-col">
+                    <div class="flex-grow p-4 overflow-y-auto space-y-4">
+                        <div class="frosted-card rounded-xl p-4">
+                             <button id="check-schemes-btn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mb-4">
+                                <svg id="scheme-check-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 11a9 9 0 0 1 14.65-4.65"></path></svg>
+                                <svg id="scheme-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span id="scheme-btn-text">Check for Latest Updates</span>
+                            </button>
+                            <div id="scheme-update-result" class="hidden text-center bg-black/20 rounded-lg p-4 mb-4">
+                               <p id="scheme-update-content" class="text-sm text-cyan-200"></p>
+                            </div>
+                        </div>
+                        <div class="frosted-card rounded-xl p-4">
+                            <h2 class="text-xl font-bold text-cyan-300">Pradhan Mantri Matsya Sampada Yojana (PMMSY)</h2>
+                            <p class="text-sm mt-2 text-gray-300">A flagship scheme to bring a 'Blue Revolution' through sustainable development of the fisheries sector.</p>
+                            <ul class="text-sm mt-3 text-cyan-200 space-y-1 list-disc list-inside">
+                                <li>Financial assistance for new boats and nets.</li>
+                                <li>Support for establishing aquaculture ponds.</li>
+                                <li>Insurance coverage against accidents.</li>
+                            </ul>
+                            <a href="https://pmmsy.dof.gov.in/" target="_blank" class="block text-center mt-4 w-full bg-cyan-600/80 hover:bg-cyan-500/80 text-white font-semibold py-2 px-4 rounded-lg">Learn More</a>
+                        </div>
+                        <div class="frosted-card rounded-xl p-4">
+                            <h2 class="text-xl font-bold text-cyan-300">Kisan Credit Card (KCC) for Fishermen</h2>
+                            <p class="text-sm mt-2 text-gray-300">Provides fishermen with access to affordable credit to meet their working capital needs.</p>
+                             <ul class="text-sm mt-3 text-cyan-200 space-y-1 list-disc list-inside">
+                                <li>Low-interest loans for operational costs.</li>
+                                <li>Covers needs like fuel, ice, and gear repair.</li>
+                                <li>Simple application process through banks.</li>
+                            </ul>
+                            <a href="https://dof.gov.in/kcc" target="_blank" class="block text-center mt-4 w-full bg-cyan-600/80 hover:bg-cyan-500/80 text-white font-semibold py-2 px-4 rounded-lg">Check Eligibility</a>
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <nav class="flex-shrink-0 flex justify-around items-center frosted-card rounded-t-2xl border-t-0 p-2">
+                 <button class="fisherman-nav-btn p-3 rounded-xl w-1/4 text-center bg-cyan-500/40" data-tab="map-tab-content">
+                    <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13v-6m0 6l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 0l6-3m0 0l6 3m-6-3V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3"></path></svg>
+                </button>
+                <button class="fisherman-nav-btn p-3 rounded-xl w-1/4 text-center text-cyan-200" data-tab="clubs-tab-content">
+                    <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </button>
+                <button class="fisherman-nav-btn p-3 rounded-xl w-1/4 text-center text-cyan-200" data-tab="revenue-tab-content">
+                    <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                </button>
+                 <button class="fisherman-nav-btn p-3 rounded-xl w-1/4 text-center text-cyan-200" data-tab="schemes-tab-content">
+                    <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z"></path></svg>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Info Modal -->
+        <div id="info-modal" class="hidden absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div class="frosted-card rounded-2xl p-6 text-white max-w-sm w-full">
+                <h2 class="text-2xl font-bold text-cyan-300">About Risk Zone Data</h2>
+                <p class="text-sm mt-4 text-gray-300">
+                    The risk zones displayed on this map are a predictive forecast for the next 7 days. 
+                </p>
+                <p class="text-sm mt-2 text-gray-300">
+                    Our AI model synthesizes real-time data from authoritative Indian and global sources to predict areas of potential danger for fishermen.
+                </p>
+                 <h3 class="font-semibold text-cyan-300 mt-4">Primary Data Sources:</h3>
+                 <ul class="text-sm mt-2 text-cyan-200 space-y-1 list-disc list-inside">
+                    <li><b>INCOIS:</b> Ocean state forecasts (waves, currents, storm surges).</li>
+                    <li><b>IMD:</b> Weather warnings, cyclone tracking, and wind forecasts.</li>
+                    <li><b>Global Models (GFS):</b> Broader weather and atmospheric patterns.</li>
+                </ul>
+                <button id="close-info-modal" class="mt-6 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg">
+                    I Understand
+                </button>
+            </div>
+        </div>
+
+        <!-- Club Modals -->
+        <div id="create-club-modal" class="hidden absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div class="frosted-card rounded-2xl p-6 text-white max-w-sm w-full space-y-4">
+                <h2 class="text-2xl font-bold text-cyan-300">Create a New Club</h2>
+                <input id="new-club-name" type="text" placeholder="Club Name" class="w-full bg-gray-900/50 border border-gray-600 rounded-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500">
+                <textarea id="new-club-desc" placeholder="Club Description" class="w-full bg-gray-900/50 border border-gray-600 rounded-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" rows="3"></textarea>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-create-club" class="bg-gray-600/50 hover:bg-gray-500/50 text-white font-bold py-2 px-4 rounded-lg">Cancel</button>
+                    <button id="submit-create-club" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="new-post-modal" class="hidden absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div class="frosted-card rounded-2xl p-6 text-white max-w-sm w-full space-y-4">
+                <h2 class="text-2xl font-bold text-cyan-300">Create a New Post</h2>
+                <textarea id="new-post-caption" placeholder="What's on your mind?" class="w-full bg-gray-900/50 border border-gray-600 rounded-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" rows="4"></textarea>
+                <input type="text" placeholder="Image URL (e.g., from placehold.co)" id="new-post-image" class="w-full bg-gray-900/50 border border-gray-600 rounded-lg p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500">
+                 <div class="flex justify-end space-x-3">
+                    <button id="cancel-new-post" class="bg-gray-600/50 hover:bg-gray-500/50 text-white font-bold py-2 px-4 rounded-lg">Cancel</button>
+                    <button id="submit-new-post" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg">Post</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Leaflet.js -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pages = document.querySelectorAll('.page');
+            let currentPageId = 'welcome-page';
+            let map; // Variable to hold the risk map instance
+            let weatherMap; // Variable for the weather map instance
+            let riskLayerGroup; // Layer group for risk circles
+            let forecastDates = []; // Array to hold the next 7 dates
+            let lastPrediction = null; // To store the last revenue prediction
+            let catchLog = JSON.parse(localStorage.getItem('marineCatchLog')) || [];
+
+            // --- TRANSLATION DATA ---
+            const translations = {
+                en: {
+                    welcome_title: "Marine Insight",
+                    welcome_subtitle: "Your guide to India's oceans and coastlines.",
+                    researcher_role: "Researcher",
+                    researcher_desc: "Access oceanographic & biodiversity data.",
+                    fisherman_role: "Fisherman",
+                    fisherman_desc: "View maps, clubs, & revenue insights.",
+                    researcher_dashboard_title: "Researcher Dashboard",
+                    oceanographic_title: "Oceanographic",
+                    oceanographic_desc: "Temperature, Salinity, Currents",
+                    fisheries_title: "Fisheries",
+                    fisheries_desc: "Stock Availability, Sustainability",
+                    biodiversity_title: "Biodiversity",
+                    biodiversity_desc: "Species, Reefs, Conservation",
+                    indias_oceans: "India's Oceans",
+                    arabian_sea: "Arabian Sea",
+                    bay_of_bengal: "Bay of Bengal",
+                    indian_ocean: "Indian Ocean (Region)",
+                    this_weeks_insights: "This Week's AI-Powered Insights",
+                    chat_with_live_data: "Chat with Live Report Data",
+                    chat_greeting_ocean: "Hello! Ask any question about this ocean. My answers are based on live web data.",
+                    chat_placeholder: "Ask a question...",
+                    data_sources: "Data Sources",
+                    data_sources_desc_ocean: "This app simulates real-time data from leading global and national oceanographic institutions:",
+                    fisheries_analysis: "Fisheries Analysis",
+                    key_indian_fisheries: "Key Indian Fisheries",
+                    global_commercial_species: "Global Commercial Species",
+                    analyse_with_live_data: "Analyse with Live Report Data",
+                    chat_greeting_fish: "Hello! Ask any question about this species. My answers are based on live web data.",
+                    data_sources_desc_fish: "Analysis is based on data from leading national and global fisheries institutions:",
+                    biodiversity_topics: "Biodiversity Topics",
+                    chat_greeting_bio: "Hello! Ask any question about this topic. My answers are based on live conservation data.",
+                    data_sources_desc_bio: "Analysis is based on data from leading national and global conservation bodies:",
+                    risk_zones: "Risk Zones",
+                    legend: "Legend",
+                    danger: "Danger",
+                    caution: "Caution",
+                    safe: "Safe",
+                    current_indian_fish_stocks: "Current Indian Fish Stocks",
+                    predictions_today_week: "Predictions for today & this week.",
+                    ai_fishing_zone_suggestions: "AI Fishing Zone Suggestions",
+                    market_price_trends: "Market Price Trends",
+                },
+                hi: {
+                    welcome_title: "मरीन इनसाइट",
+                    welcome_subtitle: "भारत के महासागरों और तटरेखाओं के लिए आपका मार्गदर्शक।",
+                    researcher_role: "शोधकर्ता",
+                    researcher_desc: "समुद्र विज्ञान और जैव विविधता डेटा तक पहुँचें।",
+                    fisherman_role: "मछुआरा",
+                    fisherman_desc: "नक्शे, समुदाय और राजस्व अंतर्दृष्टि देखें।",
+                    researcher_dashboard_title: "शोधकर्ता डैशबोर्ड",
+                    oceanographic_title: "समुद्र विज्ञान",
+                    oceanographic_desc: "तापमान, लवणता, धाराएँ",
+                    fisheries_title: "मत्स्य पालन",
+                    fisheries_desc: "स्टॉक उपलब्धता, स्थिरता",
+                    biodiversity_title: "जैव विविधता",
+                    biodiversity_desc: "प्रजातियाँ, चट्टानें, संरक्षण",
+                    indias_oceans: "भारत के महासागर",
+                    arabian_sea: "अरब सागर",
+                    bay_of_bengal: "बंगाल की खाड़ी",
+                    indian_ocean: "हिंद महासागर (क्षेत्र)",
+                    this_weeks_insights: "इस सप्ताह की AI-संचालित अंतर्दृष्टि",
+                    chat_with_live_data: "लाइव रिपोर्ट डेटा के साथ चैट करें",
+                    chat_greeting_ocean: "नमस्ते! इस महासागर के बारे में कोई भी प्रश्न पूछें। मेरे उत्तर लाइव वेब डेटा पर आधारित हैं।",
+                    chat_placeholder: "एक प्रश्न पूछें...",
+                    data_sources: "डेटा स्रोत",
+                    data_sources_desc_ocean: "यह ऐप प्रमुख वैश्विक और राष्ट्रीय समुद्र विज्ञान संस्थानों से वास्तविक समय के डेटा का अनुकरण करता है:",
+                    fisheries_analysis: "मत्स्य विश्लेषण",
+                    key_indian_fisheries: "प्रमुख भारतीय मत्स्य पालन",
+                    global_commercial_species: "वैश्विक वाणिज्यिक प्रजातियाँ",
+                    analyse_with_live_data: "लाइव रिपोर्ट डेटा के साथ विश्लेषण करें",
+                    chat_greeting_fish: "नमस्ते! इस प्रजाति के बारे में कोई भी प्रश्न पूछें। मेरे उत्तर लाइव वेब डेटा पर आधारित हैं।",
+                    data_sources_desc_fish: "विश्लेषण प्रमुख राष्ट्रीय और वैश्विक मत्स्य संस्थानों के डेटा पर आधारित है:",
+                    biodiversity_topics: "जैव विविधता विषय",
+                    chat_greeting_bio: "नमस्ते! इस विषय के बारे में कोई भी प्रश्न पूछें। मेरे उत्तर लाइव संरक्षण डेटा पर आधारित हैं।",
+                    data_sources_desc_bio: "विश्लेषण प्रमुख राष्ट्रीय और वैश्विक संरक्षण निकायों के डेटा पर आधारित है:",
+                    risk_zones: "जोखिम क्षेत्र",
+                    legend: "संकेत",
+                    danger: "खतरा",
+                    caution: "सावधानी",
+                    safe: "सुरक्षित",
+                    current_indian_fish_stocks: "वर्तमान भारतीय मछली स्टॉक",
+                    predictions_today_week: "आज और इस सप्ताह के लिए भविष्यवाणियां।",
+                    ai_fishing_zone_suggestions: "एआई मछली पकड़ने के क्षेत्र के सुझाव",
+                    market_price_trends: "बाजार मूल्य के रुझान",
+                },
+                ta: {
+                    welcome_title: "மரைன் இன்சைட்",
+                    welcome_subtitle: "இந்தியாவின் பெருங்கடல்கள் மற்றும் கடற்கரைகளுக்கான உங்கள் வழிகாட்டி.",
+                    researcher_role: "ஆராய்ச்சியாளர்",
+                    researcher_desc: "கடலியல் மற்றும் பல்லுயிர் தரவை அணுகவும்.",
+                    fisherman_role: "மீனவர்",
+                    fisherman_desc: "வரைபடங்கள், சமூகம் மற்றும் வருவாய் நுண்ணறிவுகளைக் காண்க.",
+                    researcher_dashboard_title: "ஆராய்ச்சியாளர் டாஷ்போர்டு",
+                    oceanographic_title: "கடலியல்",
+                    oceanographic_desc: "வெப்பநிலை, உப்புத்தன்மை, நீரோட்டங்கள்",
+                    fisheries_title: "மீன்வளம்",
+                    fisheries_desc: "பங்கு இருப்பு, நிலைத்தன்மை",
+                    biodiversity_title: "பல்லுயிர்",
+                    biodiversity_desc: "இனங்கள், திட்டுகள், பாதுகாப்பு",
+                    indias_oceans: "இந்தியாவின் பெருங்கடல்கள்",
+                    arabian_sea: "அரபிக்கடல்",
+                    bay_of_bengal: "வங்காள விரிகுடா",
+                    indian_ocean: "இந்தியப் பெருங்கடல் (பகுதி)",
+                    this_weeks_insights: "இந்த வாரத்தின் AI-இயங்கும் நுண்ணறிவுகள்",
+                    chat_with_live_data: "நேரடி அறிக்கை தரவுகளுடன் அரட்டையடிக்கவும்",
+                    chat_greeting_ocean: "வணக்கம்! இந்தக் கடலைப் பற்றி ஏதேனும் கேள்வி கேளுங்கள். எனது பதில்கள் நேரடி இணையத் தரவை அடிப்படையாகக் கொண்டவை.",
+                    chat_placeholder: "ஒரு கேள்வியைக் கேளுங்கள்...",
+                    data_sources: "தரவு ஆதாரங்கள்",
+                    data_sources_desc_ocean: "இந்தச் செயலி முன்னணி உலகளாவிய மற்றும் தேசிய கடலியல் நிறுவனங்களின் நிகழ்நேரத் தரவை உருவகப்படுத்துகிறது:",
+                    fisheries_analysis: "மீன்வளப் பகுப்பாய்வு",
+                    key_indian_fisheries: "முக்கிய இந்திய மீன்வளம்",
+                    global_commercial_species: "உலகளாவிய வணிக இனங்கள்",
+                    analyse_with_live_data: "நேரடி அறிக்கை தரவுகளுடன் பகுப்பாய்வு செய்யுங்கள்",
+                    chat_greeting_fish: "வணக்கம்! இந்த இனத்தைப் பற்றி ஏதேனும் கேள்வி கேளுங்கள். எனது பதில்கள் நேரடி இணையத் தரவை அடிப்படையாகக் கொண்டவை.",
+                    data_sources_desc_fish: "பகுப்பாய்வு முன்னணி தேசிய மற்றும் உலகளாவிய மீன்வள நிறுவனங்களின் தரவை அடிப்படையாகக் கொண்டது:",
+                    biodiversity_topics: "பல்லுயிர் தலைப்புகள்",
+                    chat_greeting_bio: "வணக்கம்! இந்தத் தலைப்பைப் பற்றி ஏதேனும் கேள்வி கேளுங்கள். எனது பதில்கள் நேரடிப் பாதுகாப்புத் தரவை அடிப்படையாகக் கொண்டவை.",
+                    data_sources_desc_bio: "பகுப்பாய்வு முன்னணி தேசிய மற்றும் உலகளாவிய பாதுகாப்பு அமைப்புகளின் தரவை அடிப்படையாகக் கொண்டது:",
+                    risk_zones: "ஆபத்து மண்டலங்கள்",
+                    legend: "விளக்கம்",
+                    danger: "அபாயம்",
+                    caution: "எச்சரிக்கை",
+                    safe: "பாதுகாப்பானது",
+                    current_indian_fish_stocks: "தற்போதைய இந்திய மீன் பங்குகள்",
+                    predictions_today_week: "இன்று மற்றும் இந்த வாரத்திற்கான கணிப்புகள்.",
+                    ai_fishing_zone_suggestions: "AI மீன்பிடி மண்டலப் பரிந்துரைகள்",
+                    market_price_trends: "சந்தை விலை போக்குகள்",
+                }
+            };
+
+            // --- MOCK DATA (Indian Context) ---
+            const indianFishTypes = [
+                "Indian Mackerel", "Sardines", "Pomfret", "Hilsa", "Tuna", "Shrimp & Prawns",
+                "Seer Fish (Surmai)", "Indian Salmon (Rawas)", "Catla", "Rohu", "Anchovies (Nethili)",
+                "Bombay Duck", "Croaker (Dhoma)", "Lady Fish (Kalki)", "Silver Biddy (Soud)",
+                "Black Kingfish", "Pearl Spot (Karimeen)", "Snapper", "Grouper", "Crab"
+            ];
+
+            let clubsData = [
+                { id: 1, name: "Malabar Coast Anglers", desc: "A club for fishermen operating along the Malabar coast. Sharing tips, tricks, and daily catch info.", members: 124, posts: [
+                    { user: "Ramesh K.", image: "https://placehold.co/400x250/14213d/FFFFFF?text=Fish+Catch", caption: "Excellent mackerel catch near Kochi today! The app's prediction was accurate." },
+                    { user: "Suresh P.", image: "https://placehold.co/400x250/023047/FFFFFF?text=New+Net", caption: "Just bought a new reinforced net. Let's see how it holds up." },
+                ]},
+                { id: 2, name: "Bay of Bengal Fishermen", desc: "Community for those fishing in the Bay of Bengal. Cyclone alerts, Hilsa tracking, and market news.", members: 212, posts: [
+                     { user: "Priya S.", image: null, caption: "Hilsa prices are up at the Kolkata market. Good time to sell if you have stock." },
+                ]},
+                { id: 3, name: "Deep Sea Trawlers India", desc: "A group for professional deep-sea fishermen to discuss equipment, regulations, and large catches.", members: 88, posts: []}
+            ];
+
+            const oceanData = {
+                "Arabian Sea": {
+                    insights: [
+                        "<strong>Post-Monsoon Transition:</strong> The Southwest Monsoon has withdrawn. Expect calmer seas but a heightened risk of cyclone formation over the next few weeks.",
+                        "<strong>Sea Surface Temperature:</strong> Currently averaging 28-30°C along the coasts of Maharashtra and Gujarat, ideal for fish aggregation.",
+                        "<strong>Chlorophyll Concentration:</strong> High concentrations detected off the coast of Kerala, indicating nutrient-rich waters and potential for good sardine catches.",
+                        "<strong>Salinity:</strong> Slightly lower than average near river mouths due to late monsoon runoff."
+                    ]
+                },
+                "Bay of Bengal": {
+                    insights: [
+                        "<strong>Cyclone Watch:</strong> Conditions are favorable for the formation of low-pressure systems. Fishermen are advised to monitor INCOIS alerts closely.",
+                        "<strong>River Outflow:</strong> High sediment outflow from the Ganges and Brahmaputra rivers is influencing coastal turbidity and nutrient levels.",
+                        "<strong>Sea Surface Temperature:</strong> Warm patches ( >30°C) are present in the central bay, which could intensify weather systems.",
+                        "<strong>Hilsa Migration:</strong> The main migration period is ending, but some stocks are still present near the Sundarbans delta."
+                    ]
+                },
+                "Indian Ocean": {
+                    insights: [
+                        "<strong>Indian Ocean Dipole (IOD):</strong> Currently in a neutral phase, indicating no major large-scale temperature anomalies affecting regional climate.",
+                        "<strong>Madden-Julian Oscillation (MJO):</strong> A weak MJO signal is forecast, suggesting a low probability of widespread, organized rainfall over the next week.",
+                        "<strong>Shipping Lane Traffic:</strong> Heavy traffic reported in the shipping lanes south of Sri Lanka. Small fishing vessels should exercise caution.",
+                        "<strong>Tuna Aggregation:</strong> Satellite data suggests favorable conditions for Yellowfin Tuna near the Maldives and Lakshadweep islands."
+                    ]
+                }
+            };
+
+            const fishData = {
+                "Indian Mackerel": {
+                    insights: [
+                        "<strong>Stock Status (CMFRI):</strong> Stocks along the west coast are reported as sustainable and healthy this quarter.",
+                        "<strong>Peak Season:</strong> Currently in peak season, especially in Kerala and Karnataka.",
+                        "<strong>Market Price:</strong> Stable, with a slight increase in demand from domestic markets.",
+                        "<strong>Ecological Note:</strong> Feeds primarily on plankton, so its abundance is linked to chlorophyll levels shown in oceanographic data."
+                    ]
+                },
+                "Sardines": {
+                     insights: [
+                        "<strong>Stock Status (CMFRI):</strong> Recent reports indicate a recovery in oil sardine populations along the Malabar coast.",
+                        "<strong>Spawning Season:</strong> Post-spawning season; large shoals are being reported closer to the coast.",
+                        "<strong>Market Price:</strong> High demand for fish meal and oil is keeping prices strong.",
+                        "<strong>Climate Link:</strong> Sardine populations are highly sensitive to El Niño/La Niña events and sea surface temperatures."
+                    ]
+                },
+                "Pomfret": {
+                     insights: [
+                        "<strong>Stock Status (CMFRI):</strong> Silver pomfret stocks are under pressure from overfishing. Catch regulations are in effect in some states.",
+                        "<strong>Fishing Method:</strong> Primarily caught using trawlers and gillnets.",
+                        "<strong>Market Price:</strong> High due to strong export demand and lower catch rates.",
+                        "<strong>Habitat:</strong> Found in muddy bottoms, often near estuaries."
+                    ]
+                },
+                "Hilsa": {
+                     insights: [
+                        "<strong>Stock Status (CMFRI):</strong> Stocks are stressed. Conservation efforts and fishing bans during breeding season are critical.",
+                        "<strong>Migration:</strong> Anadromous species; migration up the Ganges and other rivers is a key life stage.",
+                        "<strong>Market Price:</strong> Very high, especially in West Bengal, due to cultural significance and limited supply.",
+                        "<strong>Conservation:</strong> Cross-border cooperation with Bangladesh is essential for managing the stock."
+                    ]
+                },
+                "Tuna": {
+                     insights: [
+                        "<strong>Key Species (India):</strong> Yellowfin and Skipjack are the most commercially important species.",
+                        "<strong>Fishing Grounds:</strong> Primarily found in the waters around the Andaman & Nicobar and Lakshadweep islands.",
+                        "<strong>Export Market:</strong> India is a major exporter of tuna, with high demand from Southeast Asia and Europe.",
+                        "<strong>Sustainability:</strong> Stocks are managed by the Indian Ocean Tuna Commission (IOTC); adherence to quotas is vital."
+                    ]
+                },
+                "Shrimp": {
+                     insights: [
+                        "<strong>Key Species (India):</strong> Giant tiger prawn (P. monodon) and Indian white prawn (F. indicus) are major species.",
+                        "<strong>Aquaculture vs. Wild:</strong> A significant portion of India's shrimp production comes from aquaculture farms.",
+                        "<strong>Export Market:</strong> India is one of the world's largest exporters of shrimp, especially to the USA and EU.",
+                        "<strong>Disease Risk:</strong> Aquaculture production is vulnerable to viral outbreaks, which can impact market supply."
+                    ]
+                }
+            };
+
+            const biodiversityData = {
+                "Coral Reefs": {
+                    insights: [
+                        "<strong>Key Locations:</strong> Andaman & Nicobar Islands, Lakshadweep, Gulf of Mannar, Gulf of Kutch.",
+                        "<strong>Bleaching Alert (INCOIS):</strong> Currently 'No Stress' for most Indian reefs, but monitoring continues as sea temperatures rise.",
+                        "<strong>Dominant Species:</strong> Acropora and Porites are common genera found in Indian reefs.",
+                        "<strong>Threats:</strong> Climate change, coastal development, and unsustainable tourism are the primary threats."
+                    ]
+                },
+                "Mangrove Ecosystems": {
+                    insights: [
+                        "<strong>Key Locations:</strong> Sundarbans (West Bengal), Bhitarkanika (Odisha), Pichavaram (Tamil Nadu), Godavari-Krishna delta (Andhra Pradesh).",
+                        "<strong>Ecological Role:</strong> Act as crucial carbon sinks and serve as a natural barrier against storm surges and coastal erosion.",
+                        "<strong>Biodiversity Hotspot:</strong> Home to diverse species including the Royal Bengal Tiger (in the Sundarbans), fishing cats, and numerous bird species.",
+                        "<strong>Restoration Efforts:</strong> Government and NGOs are actively involved in mangrove plantation drives along the coastline."
+                    ]
+                },
+                "Marine Mammals": {
+                    insights: [
+                        "<strong>Key Species:</strong> Humpback dolphins, finless porpoises, Bryde's whales, and the endangered Ganges river dolphin (in connected estuaries).",
+                        "<strong>Sighting Reports:</strong> Recent sightings of Indo-Pacific humpback dolphins have increased along the coast of Goa.",
+                        "<strong>Threats:</strong> Entanglement in fishing gear ('ghost nets'), vessel strikes, and underwater noise pollution.",
+                        "<strong>Conservation Status (IUCN):</strong> Many species are listed as 'Vulnerable' or 'Endangered', highlighting the need for protection."
+                    ]
+                },
+                "Sea Turtles": {
+                    insights: [
+                        "<strong>Key Species:</strong> Olive Ridley, Green, Hawksbill, and Leatherback turtles are found in Indian waters.",
+                        "<strong>'Arribada' Nesting:</strong> Gahirmatha and Rushikulya in Odisha are famous for the mass nesting events of Olive Ridley turtles.",
+                        "<strong>Nesting Season:</strong> Currently post-nesting season for Olive Ridleys; hatchlings are making their way to the sea.",
+                        "<strong>Threats:</strong> Coastal development destroying nesting sites, light pollution disorienting hatchlings, and plastic ingestion."
+                    ]
+                }
+            };
+
+            // Expanded mock data for the 7-day slider
+             const riskZoneData = [
+                // Today: 10-Sep
+                { lat: 21.5, lng: 69.0, risk_level: 'high', probability: 85, reason: "High winds (45 km/h) from developing depression.", forecast_for: "10-Sep-2025" },
+                { lat: 10.1, lng: 75.8, risk_level: 'low', probability: 20, reason: "Calm seas, good visibility.", forecast_for: "10-Sep-2025" },
+                // 11-Sep
+                { lat: 15.5, lng: 73.0, risk_level: 'medium', probability: 65, reason: "Unexpected strong currents detected.", forecast_for: "11-Sep-2025" },
+                { lat: 20.5, lng: 87.0, risk_level: 'low', probability: 25, reason: "Slight increase in wave height.", forecast_for: "11-Sep-2025" },
+                // 12-Sep
+                { lat: 12.8, lng: 80.3, risk_level: 'high', probability: 90, reason: "Cyclone 'Priya' Advisory: Very rough seas.", forecast_for: "12-Sep-2025" },
+                { lat: 9.2, lng: 79.5, risk_level: 'low', probability: 30, reason: "Moderate traffic, but seas are calm.", forecast_for: "12-Sep-2025" },
+                // 13-Sep
+                { lat: 13.0, lng: 80.5, risk_level: 'high', probability: 95, reason: "Cyclone 'Priya' Landfall predicted. Stay in port.", forecast_for: "13-Sep-2025" },
+                { lat: 18.9, lng: 72.8, risk_level: 'medium', probability: 60, reason: "Swell waves from distant cyclone.", forecast_for: "13-Sep-2025" },
+                // 14-Sep
+                { lat: 13.2, lng: 80.7, risk_level: 'medium', probability: 70, reason: "Post-cyclone rough sea conditions.", forecast_for: "14-Sep-2025" },
+                { lat: 9.2, lng: 79.5, risk_level: 'medium', probability: 50, reason: "High fishing traffic, risk of gear entanglement.", forecast_for: "14-Sep-2025" },
+                // 15-Sep
+                { lat: 16.5, lng: 82.2, risk_level: 'low', probability: 20, reason: "Conditions improving.", forecast_for: "15-Sep-2025" },
+                { lat: 22.5, lng: 70.0, risk_level: 'low', probability: 15, reason: "Clear skies and calm seas.", forecast_for: "15-Sep-2025" },
+                // 16-Sep
+                { lat: 21.0, lng: 88.5, risk_level: 'medium', probability: 70, reason: "Dense fog expected in morning hours.", forecast_for: "16-Sep-2025" }
+            ];
+
+            // --- LANGUAGE SWITCHING LOGIC ---
+            const langMenuBtn = document.getElementById('lang-menu-btn');
+            const langMenu = document.getElementById('lang-menu');
+            const langOptions = document.querySelectorAll('.lang-option');
+            let savedLang = localStorage.getItem('marineInsightLang') || 'en';
+
+            function changeLanguage(lang) {
+                if(!translations[lang]) return;
+                
+                document.querySelectorAll('[data-translate-key]').forEach(el => {
+                    const key = el.getAttribute('data-translate-key');
+                    if(translations[lang][key]) {
+                        el.textContent = translations[lang][key];
+                    }
+                });
+                
+                document.querySelectorAll('[data-translate-key-placeholder]').forEach(el => {
+                    const key = el.getAttribute('data-translate-key-placeholder');
+                     if(translations[lang][key]) {
+                        el.placeholder = translations[lang][key];
+                    }
+                });
+
+                savedLang = lang;
+                localStorage.setItem('marineInsightLang', lang);
+                langMenu.classList.add('hidden');
+            }
+
+            langMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                langMenu.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => {
+                if(!langMenu.classList.contains('hidden')) {
+                    langMenu.classList.add('hidden');
+                }
+            });
+
+            langOptions.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const lang = e.target.getAttribute('data-lang');
+                    changeLanguage(lang);
+                });
+            });
+
+            changeLanguage(savedLang); // Load saved language on start
+
+            // --- PAGE NAVIGATION LOGIC ---
+            function showPage(targetId) {
+                if (targetId === currentPageId) return;
+                const targetPage = document.getElementById(targetId);
+                if (targetPage) {
+                    pages.forEach(page => page.classList.remove('page-active'));
+                    targetPage.classList.add('page-active');
+                    currentPageId = targetId;
+
+                    if (targetId === 'fisherman-dashboard') {
+                        if (!map) {
+                           initializeMap();
+                           updateAnalytics();
+                           displayLogs();
+                           initializeClubs();
+                        }
+                        if (!localStorage.getItem('hasSeenMapInfo')) {
+                            document.getElementById('info-modal').classList.remove('hidden');
+                        }
+                    }
+                }
+            }
+            
+            function updateOceanDetailPage(oceanName) {
+                const data = oceanData[oceanName];
+                if (!data) return;
+                const langKey = oceanName.toLowerCase().replace(/ \(.+\)/, '').replace(/ /g, '_');
+                const translatedOceanName = translations[savedLang]?.[langKey] || oceanName;
+                document.getElementById('ocean-detail-title').textContent = translatedOceanName;
+                const insightsList = document.getElementById('ocean-detail-insights');
+                insightsList.innerHTML = data.insights.map(item => `<li>${item}</li>`).join('');
+            }
+            
+            function updateFishDetailPage(fishName) {
+                const data = fishData[fishName];
+                if (!data) return;
+                document.getElementById('fish-detail-title').textContent = fishName;
+                const insightsList = document.getElementById('fish-detail-insights');
+                insightsList.innerHTML = data.insights.map(item => `<li>${item}</li>`).join('');
+            }
+            
+            function updateBiodiversityDetailPage(bioName) {
+                const data = biodiversityData[bioName];
+                if (!data) return;
+                document.getElementById('bio-detail-title').textContent = bioName;
+                const insightsList = document.getElementById('bio-detail-insights');
+                insightsList.innerHTML = data.insights.map(item => `<li>${item}</li>`).join('');
+            }
+
+
+            document.querySelectorAll('[data-target]').forEach(elem => {
+                elem.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const targetId = elem.getAttribute('data-target');
+                    
+                    if(targetId === 'oceanographic-detail') {
+                        const oceanName = elem.getAttribute('data-ocean-name');
+                        if(oceanName) updateOceanDetailPage(oceanName);
+                    }
+                    
+                    if(targetId === 'fisheries-detail') {
+                        const fishName = elem.getAttribute('data-fish-name');
+                        if(fishName) updateFishDetailPage(fishName);
+                    }
+
+                    if(targetId === 'biodiversity-detail') {
+                        const bioName = elem.getAttribute('data-bio-name');
+                        if(bioName) updateBiodiversityDetailPage(bioName);
+                    }
+                    
+                    showPage(targetId);
+                });
+            });
+
+            // --- MAP LOGIC ---
+             function initializeMap() {
+                if (map) return;
+                map = L.map('map', { zoomControl: false }).setView([15, 78], 5); // Centered on India
+
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(map);
+
+                riskLayerGroup = L.layerGroup().addTo(map);
+                setupDaySlider();
+            }
+
+            function initializeWeatherMap() {
+                if (weatherMap) return;
+                weatherMap = L.map('weather-map', { zoomControl: false }).setView([15, 78], 5);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; OpenStreetMap &copy; CARTO',
+                }).addTo(weatherMap);
+
+                fetch('https://api.rainviewer.com/public/weather-maps.json')
+                .then(res => res.json())
+                .then(apiData => {
+                    const radarLayer = L.tileLayer(apiData.radar.past[apiData.radar.past.length - 1].path + '/256/{z}/{x}/{y}/2/1_1.png', {
+                        opacity: 0.7
+                    }).addTo(weatherMap);
+                });
+            }
+
+
+            function setupDaySlider() {
+                const daySlider = document.getElementById('day-slider');
+                const dateLabel = document.getElementById('date-label');
+                const today = new Date('2025-09-10T00:00:00Z');
+
+                forecastDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() + i);
+                    forecastDates.push(date);
+                }
+
+                function updateMapForDate(date) {
+                    if (!riskLayerGroup) return;
+                    riskLayerGroup.clearLayers();
+                    const dateString = `${date.getDate()}-${date.toLocaleString('en-US', { month: 'short' })}-${date.getFullYear()}`;
+                    
+                    const zonesForDay = riskZoneData.filter(zone => zone.forecast_for === dateString);
+
+                    zonesForDay.forEach(zone => {
+                        let color;
+                        switch(zone.risk_level) {
+                            case 'high': color = '#ef4444'; break;
+                            case 'medium': color = '#f59e0b'; break;
+                            default: color = '#22c55e'; break;
+                        }
+                        const circle = L.circle([zone.lat, zone.lng], {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.4,
+                            radius: 50000
+                        });
+
+                        const popupContent = `
+                            <div class="font-sans">
+                                <h3 class="font-bold text-base mb-1">Risk Forecast</h3>
+                                <p><strong>Reason:</strong> ${zone.reason}</p>
+                                <p><strong>Probability:</strong> ${zone.probability}%</p>
+                                <p><strong>Date:</strong> ${zone.forecast_for}</p>
+                            </div>
+                        `;
+                        circle.bindPopup(popupContent);
+                        riskLayerGroup.addLayer(circle);
+                    });
+                }
+
+                function updateSliderUI(index) {
+                    const selectedDate = forecastDates[index];
+                    const day = selectedDate.toLocaleString('en-US', { weekday: 'short' });
+                    const dateStr = `${selectedDate.getDate()} ${selectedDate.toLocaleString('en-US', { month: 'short' })}`;
+                    dateLabel.textContent = `Forecast for: ${day}, ${dateStr}`;
+                    updateMapForDate(selectedDate);
+                }
+
+                daySlider.addEventListener('input', (e) => {
+                    updateSliderUI(e.target.value);
+                });
+
+                updateSliderUI(0);
+            }
+
+             // Info Modal Logic
+            const infoModal = document.getElementById('info-modal');
+            const closeInfoModalBtn = document.getElementById('close-info-modal');
+            closeInfoModalBtn.addEventListener('click', () => {
+                infoModal.classList.add('hidden');
+                localStorage.setItem('hasSeenMapInfo', 'true');
+            });
+
+            // Fisherman Dashboard - Bottom Nav Logic
+            const fishermanNavBtns = document.querySelectorAll('.fisherman-nav-btn');
+            const fishermanTabs = document.querySelectorAll('.fisherman-tab-content');
+            const fishermanHeaderTitle = document.getElementById('fisherman-header-title');
+            const fishermanHeaderActions = document.getElementById('fisherman-header-actions');
+            
+            const tabInfo = {
+                'map-tab-content': { title: 'Map' },
+                'clubs-tab-content': { title: 'Clubs' },
+                'revenue-tab-content': { title: 'Revenue Insights' },
+                'schemes-tab-content': { title: 'Govt. Schemes' }
+            };
+            fishermanNavBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.getAttribute('data-tab');
+                    const info = tabInfo[tabId];
+                    if (info) {
+                        fishermanHeaderTitle.textContent = info.title;
+                        fishermanHeaderActions.innerHTML = info.actionHtml || '';
+                    }
+                    fishermanNavBtns.forEach(b => b.classList.remove('bg-cyan-500/40', 'text-white'));
+                    btn.classList.add('bg-cyan-500/40', 'text-white');
+                    fishermanTabs.forEach(tab => {
+                        tab.classList.toggle('hidden', tab.id !== tabId);
+                    });
+                     if (map && tabId === 'map-tab-content') {
+                         setTimeout(() => map.invalidateSize(), 100);
+                    }
+                });
+            });
+
+            // Fisherman Dashboard - Map Toggle Logic
+            const riskZoneToggle = document.getElementById('risk-zone-toggle');
+            const weatherMapToggle = document.getElementById('weather-map-toggle');
+            const riskZonesView = document.getElementById('risk-zones-view');
+            const weatherMapView = document.getElementById('weather-map-view');
+            const daySliderContainer = document.getElementById('day-slider-container');
+
+            riskZoneToggle.addEventListener('click', () => {
+                riskZoneToggle.classList.add('bg-cyan-500', 'text-white');
+                riskZoneToggle.classList.remove('text-cyan-200');
+                weatherMapToggle.classList.remove('bg-cyan-500', 'text-white');
+                weatherMapToggle.classList.add('text-cyan-200');
+                riskZonesView.classList.remove('hidden');
+                weatherMapView.classList.add('hidden');
+                daySliderContainer.classList.remove('hidden');
+                 if (map) {
+                    setTimeout(() => map.invalidateSize(), 100);
+                }
+            });
+            weatherMapToggle.addEventListener('click', () => {
+                weatherMapToggle.classList.add('bg-cyan-500', 'text-white');
+                weatherMapToggle.classList.remove('text-cyan-200');
+                riskZoneToggle.classList.remove('bg-cyan-500', 'text-white');
+                riskZoneToggle.classList.add('text-cyan-200');
+                weatherMapView.classList.remove('hidden');
+                riskZonesView.classList.add('hidden');
+                daySliderContainer.classList.add('hidden');
+                if(!weatherMap) {
+                    initializeWeatherMap();
+                } else {
+                    setTimeout(() => weatherMap.invalidateSize(), 100);
+                }
+            });
+            
+            // --- CLUBS LOGIC ---
+            const clubListView = document.getElementById('club-list-view');
+            const clubDetailView = document.getElementById('club-detail-view');
+            const createClubBtn = document.getElementById('create-club-btn');
+            const backToClubsBtn = document.getElementById('back-to-clubs-btn');
+            const createClubModal = document.getElementById('create-club-modal');
+            const newPostModal = document.getElementById('new-post-modal');
+            let activeClubId = null;
+
+            function initializeClubs() {
+                displayClubs();
+
+                createClubBtn.addEventListener('click', () => createClubModal.classList.remove('hidden'));
+                document.getElementById('cancel-create-club').addEventListener('click', () => createClubModal.classList.add('hidden'));
+                document.getElementById('submit-create-club').addEventListener('click', handleCreateClub);
+
+                backToClubsBtn.addEventListener('click', showClubList);
+                document.getElementById('new-post-btn').addEventListener('click', () => newPostModal.classList.remove('hidden'));
+                document.getElementById('cancel-new-post').addEventListener('click', () => newPostModal.classList.add('hidden'));
+                document.getElementById('submit-new-post').addEventListener('click', handleNewPost);
+            }
+
+            function displayClubs() {
+                const clubList = document.getElementById('club-list');
+                clubList.innerHTML = '';
+                clubsData.forEach(club => {
+                    const clubCard = document.createElement('div');
+                    clubCard.className = 'frosted-card rounded-xl p-4 cursor-pointer hover:border-cyan-400';
+                    clubCard.innerHTML = `
+                        <h3 class="font-bold text-lg text-white">${club.name}</h3>
+                        <p class="text-sm text-gray-300 mt-1">${club.desc}</p>
+                        <p class="text-xs text-cyan-300 mt-2">${club.members} members</p>
+                    `;
+                    clubCard.addEventListener('click', () => showClubDetail(club.id));
+                    clubList.appendChild(clubCard);
+                });
+            }
+
+            function showClubList() {
+                clubDetailView.classList.add('hidden');
+                clubListView.classList.remove('hidden');
+            }
+
+            function showClubDetail(clubId) {
+                activeClubId = clubId;
+                const club = clubsData.find(c => c.id === clubId);
+                if (!club) return;
+                
+                document.getElementById('club-detail-title').textContent = club.name;
+                
+                const clubFeed = document.getElementById('club-feed');
+                clubFeed.innerHTML = '';
+                if (club.posts.length === 0) {
+                    clubFeed.innerHTML = `<p class="text-center text-gray-400">No posts in this club yet. Be the first!</p>`;
+                } else {
+                    club.posts.slice().reverse().forEach(post => { // show newest first
+                        const postCard = document.createElement('div');
+                        postCard.className = 'frosted-card rounded-xl p-4';
+                        let imageHtml = post.image ? `<img src="${post.image}" onerror="this.style.display='none'" class="rounded-lg w-full object-cover mt-2">` : '';
+                        postCard.innerHTML = `
+                            <div class="flex items-center">
+                                <img src="https://placehold.co/40x40/fca311/FFFFFF?text=${post.user.charAt(0)}" class="w-10 h-10 rounded-full mr-3">
+                                <p class="font-semibold">${post.user}</p>
+                            </div>
+                            <p class="text-sm mt-3 whitespace-pre-wrap">${post.caption}</p>
+                            ${imageHtml}
+                            <div class="flex justify-between items-center mt-3 text-sm text-cyan-200">
+                                <span>❤️ Like</span>
+                                <span>💬 Comment</span>
+                                <span>🔗 Share</span>
+                            </div>
+                        `;
+                        clubFeed.appendChild(postCard);
+                    });
+                }
+
+                clubListView.classList.add('hidden');
+                clubDetailView.classList.remove('hidden');
+            }
+            
+            function handleCreateClub() {
+                const nameInput = document.getElementById('new-club-name');
+                const descInput = document.getElementById('new-club-desc');
+                if (nameInput.value && descInput.value) {
+                    const newClub = {
+                        id: Date.now(),
+                        name: nameInput.value,
+                        desc: descInput.value,
+                        members: 1,
+                        posts: []
+                    };
+                    clubsData.unshift(newClub);
+                    displayClubs();
+                    nameInput.value = '';
+                    descInput.value = '';
+                    createClubModal.classList.add('hidden');
+                }
+            }
+
+            function handleNewPost() {
+                const captionInput = document.getElementById('new-post-caption');
+                const imageInput = document.getElementById('new-post-image');
+                if (captionInput.value && activeClubId) {
+                    const club = clubsData.find(c => c.id === activeClubId);
+                    if (club) {
+                        const newPost = {
+                            user: "You", // Assuming current user
+                            caption: captionInput.value,
+                            image: imageInput.value || null
+                        };
+                        club.posts.unshift(newPost);
+                        showClubDetail(activeClubId);
+                        captionInput.value = '';
+                        imageInput.value = '';
+                        newPostModal.classList.add('hidden');
+                    }
+                }
+            }
+
+            // --- REVENUE PREDICTOR & CATCH LOG ---
+            const fishSelect = document.getElementById('fish-select');
+            const quantityInput = document.getElementById('quantity-input');
+            const predictBtn = document.getElementById('predict-revenue-btn');
+            const revenueResult = document.getElementById('revenue-result');
+            const predictedAmount = document.getElementById('predicted-amount');
+            const rateInfo = document.getElementById('rate-info');
+            const predictIcon = document.getElementById('predict-icon');
+            const predictSpinner = document.getElementById('predict-spinner');
+            const predictBtnText = document.getElementById('predict-btn-text');
+            const saveCatchBtn = document.getElementById('save-catch-btn');
+            const catchLogList = document.getElementById('catch-log-list');
+            const noLogsMessage = document.getElementById('no-logs-message');
+            const totalRevenueAnalytics = document.getElementById('total-revenue-analytics');
+            const topFishAnalytics = document.getElementById('top-fish-analytics');
+
+
+            // Populate fish selector
+            indianFishTypes.forEach(fish => {
+                const option = document.createElement('option');
+                option.value = fish;
+                option.textContent = fish;
+                fishSelect.appendChild(option);
+            });
+            
+            async function getPredictedPrice(fishName) {
+                const response = await fetch('/api/predict-price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fishName })
+                });
+                if (!response.ok) return Math.floor(Math.random() * (450 - 150 + 1)) + 150; // Fallback
+                const data = await response.json();
+                return data.price || Math.floor(Math.random() * (450 - 150 + 1)) + 150; // Fallback
+            }
+            
+            predictBtn.addEventListener('click', async () => {
+                const selectedFish = fishSelect.value;
+                const quantity = parseFloat(quantityInput.value);
+
+                if (!selectedFish || isNaN(quantity) || quantity <= 0) {
+                    alert("Please select a fish type and enter a valid quantity.");
+                    return;
+                }
+
+                predictIcon.classList.add('hidden');
+                predictSpinner.classList.remove('hidden');
+                predictBtnText.textContent = "Analyzing Market...";
+                predictBtn.disabled = true;
+
+                const pricePerKg = await getPredictedPrice(selectedFish);
+                const totalRevenue = pricePerKg * quantity;
+
+                lastPrediction = {
+                    fish: selectedFish,
+                    quantity: quantity,
+                    rate: pricePerKg,
+                    total: totalRevenue,
+                    date: new Date().toISOString()
+                };
+                
+                predictedAmount.textContent = `₹ ${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+                rateInfo.textContent = `Based on a predicted rate of ₹${pricePerKg.toFixed(2)}/kg for ${selectedFish}`;
+                revenueResult.classList.remove('hidden');
+                saveCatchBtn.classList.remove('hidden');
+
+                predictIcon.classList.remove('hidden');
+                predictSpinner.classList.add('hidden');
+                predictBtnText.textContent = "Predict Revenue";
+                predictBtn.disabled = false;
+            });
+
+            saveCatchBtn.addEventListener('click', () => {
+                if(lastPrediction) {
+                    catchLog.unshift(lastPrediction); // Add to the beginning of the array
+                    localStorage.setItem('marineCatchLog', JSON.stringify(catchLog));
+                    
+                    // Reset UI
+                    revenueResult.classList.add('hidden');
+                    saveCatchBtn.classList.add('hidden');
+                    quantityInput.value = '';
+                    lastPrediction = null;
+
+                    updateAnalytics();
+                    displayLogs();
+                }
+            });
+
+            function updateAnalytics() {
+                if (catchLog.length === 0) {
+                    totalRevenueAnalytics.textContent = '₹ 0';
+                    topFishAnalytics.textContent = 'N/A';
+                    return;
+                }
+
+                const totalRevenue = catchLog.reduce((sum, log) => sum + log.total, 0);
+                totalRevenueAnalytics.textContent = `₹ ${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+                const fishProfits = catchLog.reduce((acc, log) => {
+                    acc[log.fish] = (acc[log.fish] || 0) + log.total;
+                    return acc;
+                }, {});
+
+                const topFish = Object.keys(fishProfits).reduce((a, b) => fishProfits[a] > fishProfits[b] ? a : b);
+                topFishAnalytics.textContent = topFish;
+            }
+
+            function displayLogs() {
+                catchLogList.innerHTML = ''; // Clear list
+                if (catchLog.length === 0) {
+                    noLogsMessage.classList.remove('hidden');
+                } else {
+                    noLogsMessage.classList.add('hidden');
+                    catchLog.forEach(log => {
+                        const logEl = document.createElement('div');
+                        logEl.className = 'text-xs bg-black/20 p-2 rounded-md flex justify-between items-center';
+                        const logDate = new Date(log.date);
+                        logEl.innerHTML = `
+                            <div>
+                                <p class="font-bold text-white">${log.quantity}kg of ${log.fish}</p>
+                                <p class="text-gray-400">${logDate.toLocaleDateString()}</p>
+                            </div>
+                            <p class="font-semibold text-green-400">₹ ${log.total.toLocaleString('en-IN')}</p>
+                        `;
+                        catchLogList.appendChild(logEl);
+                    });
+                }
+            }
+
+
+            // --- AI Chat Logic (Now with Live Google Search) & SCHEMES ---
+            const oceanChatHistory = document.getElementById('chat-history');
+            const oceanChatInput = document.getElementById('chat-input');
+            const oceanSendChatBtn = document.getElementById('send-chat-btn');
+            const fishChatHistory = document.getElementById('fish-chat-history');
+            const fishChatInput = document.getElementById('fish-chat-input');
+            const fishSendChatBtn = document.getElementById('fish-send-chat-btn');
+            const bioChatHistory = document.getElementById('bio-chat-history');
+            const bioChatInput = document.getElementById('bio-chat-input');
+            const bioSendChatBtn = document.getElementById('bio-send-chat-btn');
+            const checkSchemesBtn = document.getElementById('check-schemes-btn');
+            
+            async function getAiChatResponse(question, context, type) {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, context, type })
+                });
+                if (!response.ok) return "There was an issue connecting to the AI service.";
+                const data = await response.json();
+                return data.response;
+            }
+            
+            checkSchemesBtn.addEventListener('click', async () => {
+                const schemeSpinner = document.getElementById('scheme-spinner');
+                const schemeIcon = document.getElementById('scheme-check-icon');
+                const schemeBtnText = document.getElementById('scheme-btn-text');
+                const schemeResultDiv = document.getElementById('scheme-update-result');
+                const schemeContentP = document.getElementById('scheme-update-content');
+
+                schemeIcon.classList.add('hidden');
+                schemeSpinner.classList.remove('hidden');
+                schemeBtnText.textContent = "Checking for updates...";
+                checkSchemesBtn.disabled = true;
+
+                const response = await fetch('/api/schemes');
+                const data = await response.json();
+                const updates = data.updates;
+                
+                let htmlUpdates = updates.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                htmlUpdates = htmlUpdates.replace(/^\* (.*$)/gm, '<li class="ml-4 list-disc text-left">$1</li>');
+                schemeContentP.innerHTML = htmlUpdates;
+                schemeResultDiv.classList.remove('hidden');
+
+                schemeIcon.classList.remove('hidden');
+                schemeSpinner.classList.add('hidden');
+                schemeBtnText.textContent = "Check for Latest Updates";
+                checkSchemesBtn.disabled = false;
+            });
+
+
+            function setupChat(chatHistoryEl, chatInputEl, sendBtnEl, contextFn, type) {
+                function appendMessage(text, role) {
+                    const messageWrapper = document.createElement('div');
+                    messageWrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+                    let htmlText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    htmlText = htmlText.replace(/^\* (.*$)/gm, '<li class="ml-4 list-disc">$1</li>');
+                    messageWrapper.innerHTML = `<div class="rounded-lg p-2 max-w-xs text-sm ${role === 'user' ? 'bg-cyan-700/70' : 'bg-gray-700/50'}"><p>${htmlText}</p></div>`;
+                    chatHistoryEl.appendChild(messageWrapper);
+                    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+                }
+
+                async function handleSendMessage() {
+                    const userQuestion = chatInputEl.value.trim();
+                    if (!userQuestion) return;
+                    appendMessage(userQuestion, 'user');
+                    chatInputEl.value = '';
+                    chatInputEl.disabled = true;
+                    sendBtnEl.disabled = true;
+
+                    const typingIndicator = document.createElement('div');
+                    typingIndicator.className = 'flex justify-start typing-indicator';
+                    typingIndicator.innerHTML = `<div class="bg-gray-700/50 rounded-lg p-2 max-w-xs text-sm"><p class="italic text-gray-400">Searching live data...</p></div>`;
+                    chatHistoryEl.appendChild(typingIndicator);
+                    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+                    
+                    const context = contextFn();
+                    const aiResponse = await getAiChatResponse(userQuestion, context, type);
+                    
+                    chatHistoryEl.removeChild(typingIndicator);
+                    appendMessage(aiResponse, 'assistant');
+                    chatInputEl.disabled = false;
+                    sendBtnEl.disabled = false;
+                    chatInputEl.focus();
+                }
+                sendBtnEl.addEventListener('click', handleSendMessage);
+                chatInputEl.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+            }
+            
+            setupChat(oceanChatHistory, oceanChatInput, oceanSendChatBtn, () => document.getElementById('ocean-detail-title').textContent, 'ocean');
+            setupChat(fishChatHistory, fishChatInput, fishSendChatBtn, () => document.getElementById('fish-detail-title').textContent, 'fish');
+            setupChat(bioChatHistory, bioChatInput, bioSendChatBtn, () => document.getElementById('bio-detail-title').textContent, 'biodiversity');
+
+        });
+    </script>
+</body>
+</html>
